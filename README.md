@@ -52,7 +52,7 @@ Mush Audit is an AI-powered smart contract security auditing platform. It uses t
 - Deeper security insights
 
 ## Getting Started
-- Clone the repository: ``git clone https://github.com/mush-support/mush-audit``
+- Clone the repository: ``git clone https://github.com/NeverSight/mush-audit``
 - ``cd mush-audit``
 - Enter your **Neversight API Key** in the in-app **AI Configuration** modal (it will be saved to your browser `localStorage`)
 - Install dependencies: ``bun install``

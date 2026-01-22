@@ -151,7 +151,7 @@ export default function HomePage() {
             <div>
               © 2024 mush-support. Licensed under{" "}
               <a
-                href="https://github.com/mush-support/mush-audit/blob/main/LICENSE"
+                href="https://github.com/NeverSight/mush-audit/blob/main/LICENSE"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[#FF8B3E] hover:text-[#FF8B3E]/80 transition-colors"
@@ -160,7 +160,7 @@ export default function HomePage() {
               </a>
             </div>
             <a
-              href="https://github.com/mush-support/mush-audit"
+              href="https://github.com/NeverSight/mush-audit"
               target="_blank"
               rel="noopener noreferrer"
               className="p-1 text-gray-400 hover:text-gray-300 transition-colors"
