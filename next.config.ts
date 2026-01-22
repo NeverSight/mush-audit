@@ -7,7 +7,12 @@ const nextConfig = {
   },
   reactStrictMode: true,
   images: {
-    domains: [WEBSITE_URL],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: WEBSITE_URL,
+      },
+    ],
     unoptimized: true,
   },
   async headers() {
