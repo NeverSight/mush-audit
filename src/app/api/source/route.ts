@@ -16,6 +16,9 @@ export async function GET(request: NextRequest) {
 
   try {
     const { url, apiKey } = getApiScanConfig(chain);
+    // Many Etherscan-compatible explorers reject missing/empty api keys.
+    // Use the documented placeholder token as a best-effort public key when users didn't configure one.
+    const effectiveApiKey = apiKey || 'YourApiKeyToken';
     
     // // 1. Try to get source code from blockscan
     // try {
@@ -38,8 +41,15 @@ export async function GET(request: NextRequest) {
     //   console.log('Failed to fetch from blockscan, falling back to etherscan');
     // }
 
-    // 2. If blockscan fails, fallback to etherscan
-    const apiUrl = `${url}?module=contract&action=getsourcecode&address=${address}&apikey=${apiKey}`;
+    // 2. If blockscan fails, fallback to explorer API (Etherscan-compatible)
+    const sourceParams = new URLSearchParams({
+      module: 'contract',
+      action: 'getsourcecode',
+      address,
+    });
+    sourceParams.set('apikey', effectiveApiKey);
+
+    const apiUrl = `${url}?${sourceParams.toString()}`;
     const response = await fetch(apiUrl);
     const data = await response.json();
 
@@ -164,7 +174,13 @@ export async function GET(request: NextRequest) {
         }
 
         // Get implementation contract source code
-        const implUrl = `${url}?module=contract&action=getsourcecode&address=${result.Implementation}&apikey=${apiKey}`;
+        const implSourceParams = new URLSearchParams({
+          module: 'contract',
+          action: 'getsourcecode',
+          address: result.Implementation,
+        });
+        implSourceParams.set('apikey', effectiveApiKey);
+        const implUrl = `${url}?${implSourceParams.toString()}`;
         const implResponse = await fetch(implUrl);
         const implData = await implResponse.json();
 
@@ -235,7 +251,13 @@ export async function GET(request: NextRequest) {
       }
 
       // Get contract ABI
-      const abiUrl = `${url}?module=contract&action=getabi&address=${address}&apikey=${apiKey}`;
+      const abiParams = new URLSearchParams({
+        module: 'contract',
+        action: 'getabi',
+        address,
+      });
+      abiParams.set('apikey', effectiveApiKey);
+      const abiUrl = `${url}?${abiParams.toString()}`;
       const abiResponse = await fetch(abiUrl);
       const abiData = await abiResponse.json();
 
@@ -252,7 +274,13 @@ export async function GET(request: NextRequest) {
 
       // If proxy contract, also get implementation contract ABI
       if (isProxy && result.Implementation) {
-        const implAbiUrl = `${url}?module=contract&action=getabi&address=${result.Implementation}&apikey=${apiKey}`;
+        const implAbiParams = new URLSearchParams({
+          module: 'contract',
+          action: 'getabi',
+          address: result.Implementation,
+        });
+        implAbiParams.set('apikey', effectiveApiKey);
+        const implAbiUrl = `${url}?${implAbiParams.toString()}`;
         const implAbiResponse = await fetch(implAbiUrl);
         const implAbiData = await implAbiResponse.json();
 
@@ -277,8 +305,29 @@ export async function GET(request: NextRequest) {
         // ... other return fields ...
       });
     }
-    
-    throw new Error('Failed to fetch contract source');
+
+    // Surface explorer error details to help debugging (e.g. missing/invalid API key, rate limits)
+    console.error('Explorer getsourcecode failed', {
+      chain,
+      address,
+      apiUrl,
+      apiKeyMode: apiKey ? 'custom' : 'public',
+      status: data?.status,
+      message: data?.message,
+      result: data?.result,
+    });
+    return NextResponse.json(
+      {
+        error: 'Failed to fetch contract source',
+        explorer: {
+          status: data?.status,
+          message: data?.message,
+          result: data?.result,
+          apiKeyMode: apiKey ? 'custom' : 'public',
+        },
+      },
+      { status: 502 }
+    );
   } catch (error) {
     console.error('Error:', error);
     return NextResponse.json(
