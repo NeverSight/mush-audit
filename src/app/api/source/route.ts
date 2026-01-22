@@ -8,6 +8,15 @@ type ExplorerApiResponse = {
   result?: unknown;
 } & Record<string, unknown>;
 
+type SourceCodeResultItem = {
+  SourceCode: string;
+  ContractName: string;
+  CompilerVersion: string;
+  OptimizationUsed: string;
+  Runs: string;
+  Implementation?: string;
+} & Record<string, unknown>;
+
 function toV2BaseUrl(v1Url: string): string {
   if (v1Url.includes('/v2/')) return v1Url;
   // Most Etherscan-family explorers use .../api (v1) and .../v2/api (v2)
@@ -26,6 +35,16 @@ function extractSourceContent(fileInfo: unknown): string {
     if (typeof content === 'string') return content;
   }
   return '';
+}
+
+function getResultArray(data: ExplorerApiResponse): unknown[] {
+  return Array.isArray(data.result) ? data.result : [];
+}
+
+function getFirstSourceItem(data: ExplorerApiResponse): SourceCodeResultItem | null {
+  const first = getResultArray(data)[0];
+  if (first && typeof first === 'object') return first as SourceCodeResultItem;
+  return null;
 }
 
 export async function GET(request: NextRequest) {
@@ -101,8 +120,8 @@ export async function GET(request: NextRequest) {
 
     const { data, requestUrl: apiUrl } = await fetchExplorer(sourceParams);
 
-    if (data.status === '1' && data.result[0]) {
-      const result = data.result[0];
+    const result = data.status === '1' ? getFirstSourceItem(data) : null;
+    if (result) {
       
       if (result.SourceCode === '') {
         return NextResponse.json(
@@ -230,8 +249,8 @@ export async function GET(request: NextRequest) {
         implSourceParams.set('apikey', effectiveApiKey);
         const { data: implData } = await fetchExplorer(implSourceParams);
 
-        if (implData.status === '1' && implData.result[0]) {
-          const implResult = implData.result[0];
+        const implResult = implData.status === '1' ? getFirstSourceItem(implData) : null;
+        if (implResult) {
           
           if (implResult.SourceCode.startsWith('{')) {
             try {
@@ -308,7 +327,7 @@ export async function GET(request: NextRequest) {
       let contractABI = [];
       let implementationABI = [];
 
-      if (abiData.status === '1' && abiData.result) {
+      if (abiData.status === '1' && typeof abiData.result === 'string') {
         try {
           contractABI = JSON.parse(abiData.result);
         } catch (e) {
@@ -326,7 +345,7 @@ export async function GET(request: NextRequest) {
         implAbiParams.set('apikey', effectiveApiKey);
         const { data: implAbiData } = await fetchExplorer(implAbiParams);
 
-        if (implAbiData.status === '1' && implAbiData.result) {
+        if (implAbiData.status === '1' && typeof implAbiData.result === 'string') {
           try {
             implementationABI = JSON.parse(implAbiData.result);
           } catch (e) {
