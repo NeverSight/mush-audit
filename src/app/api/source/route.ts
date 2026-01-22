@@ -205,8 +205,14 @@ export async function GET(request: NextRequest) {
         };
       }
 
-      // Check if this is a proxy contract
-      const isProxy = result.Implementation && result.Implementation !== '0x0000000000000000000000000000000000000000';
+      // Check if this is a proxy contract (normalize implementation address for type-safety)
+      const implementationRaw =
+        typeof result.Implementation === 'string' ? result.Implementation : '';
+      const normalizedImplementation =
+        implementationRaw && implementationRaw !== '0x0000000000000000000000000000000000000000'
+          ? implementationRaw
+          : null;
+      const isProxy = normalizedImplementation !== null;
 
       if (isProxy) {
         // Process proxy contract source code
@@ -244,7 +250,7 @@ export async function GET(request: NextRequest) {
         const implSourceParams = new URLSearchParams({
           module: 'contract',
           action: 'getsourcecode',
-          address: result.Implementation,
+          address: normalizedImplementation,
         });
         implSourceParams.set('apikey', effectiveApiKey);
         const { data: implData } = await fetchExplorer(implSourceParams);
@@ -336,11 +342,11 @@ export async function GET(request: NextRequest) {
       }
 
       // If proxy contract, also get implementation contract ABI
-      if (isProxy && result.Implementation) {
+      if (isProxy) {
         const implAbiParams = new URLSearchParams({
           module: 'contract',
           action: 'getabi',
-          address: result.Implementation,
+          address: normalizedImplementation,
         });
         implAbiParams.set('apikey', effectiveApiKey);
         const { data: implAbiData } = await fetchExplorer(implAbiParams);
