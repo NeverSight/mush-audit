@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "bunx --bun next dev",
-    "build": "bunx --bun next build",
-    "start": "bunx --bun next start",
-    "lint": "bunx --bun next lint"
+    "build": "node ./node_modules/next/dist/bin/next build",
+    "start": "node ./node_modules/next/dist/bin/next start",
+    "lint": "node ./node_modules/next/dist/bin/next lint"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
