@@ -47,7 +47,7 @@ export default function HomePage() {
           </a>
 
           <a
-            href="https://github.com/mush-support/mush-audit/blob/main/README.md"
+            href="https://github.com/NeverSight/mush-audit/blob/main/README.md"
             target="_blank"
             rel="noopener noreferrer"
             className="px-8 py-4 bg-[#252526] rounded-lg
