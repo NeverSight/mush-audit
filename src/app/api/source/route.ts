@@ -1,6 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { ContractFile } from '@/types/blockchain';
-import { getApiScanConfig } from '@/utils/chainServices';
+import { getApiScanConfig, getChainId } from '@/utils/chainServices';
+
+type ExplorerApiResponse = {
+  status?: string;
+  message?: string;
+  result?: unknown;
+} & Record<string, unknown>;
+
+function toV2BaseUrl(v1Url: string): string {
+  if (v1Url.includes('/v2/')) return v1Url;
+  // Most Etherscan-family explorers use .../api (v1) and .../v2/api (v2)
+  return v1Url.replace(/\/api\/?$/, '/v2/api');
+}
+
+function isDeprecatedV1Error(data: ExplorerApiResponse): boolean {
+  const msg = `${String(data?.result || '')} ${String(data?.message || '')}`.toLowerCase();
+  return msg.includes('deprecated') && msg.includes('v1');
+}
+
+function extractSourceContent(fileInfo: unknown): string {
+  if (typeof fileInfo === 'string') return fileInfo;
+  if (fileInfo && typeof fileInfo === 'object' && 'content' in fileInfo) {
+    const content = (fileInfo as { content?: unknown }).content;
+    if (typeof content === 'string') return content;
+  }
+  return '';
+}
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -16,9 +42,33 @@ export async function GET(request: NextRequest) {
 
   try {
     const { url, apiKey } = getApiScanConfig(chain);
+    const chainId = getChainId(chain) || '';
     // Many Etherscan-compatible explorers reject missing/empty api keys.
     // Use the documented placeholder token as a best-effort public key when users didn't configure one.
     const effectiveApiKey = apiKey || 'YourApiKeyToken';
+
+    const fetchExplorer = async (params: URLSearchParams) => {
+      const attempt = async (baseUrl: string, useV2: boolean) => {
+        const p = new URLSearchParams(params);
+        if (useV2 && chainId) {
+          p.set('chainid', chainId);
+        }
+        const requestUrl = `${baseUrl}?${p.toString()}`;
+        const resp = await fetch(requestUrl);
+        const json = (await resp.json()) as ExplorerApiResponse;
+        return { json, requestUrl };
+      };
+
+      // v1 first
+      let { json, requestUrl } = await attempt(url, false);
+
+      // auto-upgrade to v2 if v1 is deprecated
+      if (json?.status === '0' && isDeprecatedV1Error(json)) {
+        ({ json, requestUrl } = await attempt(toV2BaseUrl(url), true));
+      }
+
+      return { data: json, requestUrl };
+    };
     
     // // 1. Try to get source code from blockscan
     // try {
@@ -49,9 +99,7 @@ export async function GET(request: NextRequest) {
     });
     sourceParams.set('apikey', effectiveApiKey);
 
-    const apiUrl = `${url}?${sourceParams.toString()}`;
-    const response = await fetch(apiUrl);
-    const data = await response.json();
+    const { data, requestUrl: apiUrl } = await fetchExplorer(sourceParams);
 
     if (data.status === '1' && data.result[0]) {
       const result = data.result[0];
@@ -80,24 +128,24 @@ export async function GET(request: NextRequest) {
           
           // Process source files
           if (parsed.sources) {
-            Object.entries(parsed.sources).forEach(([path, fileInfo]: [string, any]) => {
+            Object.entries(parsed.sources as Record<string, unknown>).forEach(([path, fileInfo]: [string, unknown]) => {
               files.push({
                 name: path.split('/').pop() || path,
                 path: path,
-                content: fileInfo.content
+                content: extractSourceContent(fileInfo)
               });
             });
           } else {
-            Object.entries(parsed).forEach(([path, content]: [string, any]) => {
+            Object.entries(parsed as Record<string, unknown>).forEach(([path, content]: [string, unknown]) => {
               files.push({
                 name: path.split('/').pop() || path,
                 path: path,
-                content: typeof content === 'string' ? content : content.content
+                content: extractSourceContent(content)
               });
             });
           }
-        } catch (e) {
-          console.error('Error parsing multi-file contract:', e);
+        } catch (_e) {
+          console.error('Error parsing multi-file contract:', _e);
           files.push({
             name: `${result.ContractName}.sol`,
             path: `${result.ContractName}.sol`,
@@ -150,15 +198,15 @@ export async function GET(request: NextRequest) {
             
             if (parsed.sources) {
               // Add proxy contract files
-              Object.entries(parsed.sources).forEach(([path, fileInfo]: [string, any]) => {
+              Object.entries(parsed.sources as Record<string, unknown>).forEach(([path, fileInfo]: [string, unknown]) => {
                 filteredFiles.push({
                   name: path.split('/').pop() || path,
                   path: `proxy/${path}`,  // Add proxy/ prefix
-                  content: fileInfo.content
+                  content: extractSourceContent(fileInfo)
                 });
               });
             }
-          } catch (e) {
+          } catch {
             filteredFiles.push({
               name: `${result.ContractName}.sol`,
               path: `proxy/${result.ContractName}.sol`,  // Add proxy/ prefix
@@ -180,9 +228,7 @@ export async function GET(request: NextRequest) {
           address: result.Implementation,
         });
         implSourceParams.set('apikey', effectiveApiKey);
-        const implUrl = `${url}?${implSourceParams.toString()}`;
-        const implResponse = await fetch(implUrl);
-        const implData = await implResponse.json();
+        const { data: implData } = await fetchExplorer(implSourceParams);
 
         if (implData.status === '1' && implData.result[0]) {
           const implResult = implData.result[0];
@@ -194,15 +240,15 @@ export async function GET(request: NextRequest) {
               
               if (parsed.sources) {
                 // Add implementation contract files
-                Object.entries(parsed.sources).forEach(([path, fileInfo]: [string, any]) => {
+                Object.entries(parsed.sources as Record<string, unknown>).forEach(([path, fileInfo]: [string, unknown]) => {
                   filteredFiles.push({
                     name: path.split('/').pop() || path,
                     path: `implementation/${path}`,  // Add implementation/ prefix
-                    content: fileInfo.content
+                    content: extractSourceContent(fileInfo)
                   });
                 });
               }
-            } catch (e) {
+            } catch {
               filteredFiles.push({
                 name: `${implResult.ContractName}.sol`,
                 path: `implementation/${implResult.ContractName}.sol`,  // Add implementation/ prefix
@@ -226,15 +272,15 @@ export async function GET(request: NextRequest) {
             
             if (parsed.sources) {
               // Add source files
-              Object.entries(parsed.sources).forEach(([path, fileInfo]: [string, any]) => {
+              Object.entries(parsed.sources as Record<string, unknown>).forEach(([path, fileInfo]: [string, unknown]) => {
                 filteredFiles.push({
                   name: path.split('/').pop() || path,
                   path: path,  // No prefix for non-proxy contracts
-                  content: fileInfo.content
+                  content: extractSourceContent(fileInfo)
                 });
               });
             }
-          } catch (e) {
+          } catch {
             filteredFiles.push({
               name: `${result.ContractName}.sol`,
               path: `${result.ContractName}.sol`,  // No prefix for non-proxy contracts
@@ -257,9 +303,7 @@ export async function GET(request: NextRequest) {
         address,
       });
       abiParams.set('apikey', effectiveApiKey);
-      const abiUrl = `${url}?${abiParams.toString()}`;
-      const abiResponse = await fetch(abiUrl);
-      const abiData = await abiResponse.json();
+      const { data: abiData } = await fetchExplorer(abiParams);
 
       let contractABI = [];
       let implementationABI = [];
@@ -280,9 +324,7 @@ export async function GET(request: NextRequest) {
           address: result.Implementation,
         });
         implAbiParams.set('apikey', effectiveApiKey);
-        const implAbiUrl = `${url}?${implAbiParams.toString()}`;
-        const implAbiResponse = await fetch(implAbiUrl);
-        const implAbiData = await implAbiResponse.json();
+        const { data: implAbiData } = await fetchExplorer(implAbiParams);
 
         if (implAbiData.status === '1' && implAbiData.result) {
           try {
