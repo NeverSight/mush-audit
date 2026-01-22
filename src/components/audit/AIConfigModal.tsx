@@ -1,13 +1,9 @@
 import { useState, useEffect } from "react";
-import { useAIConfig } from "@/utils/ai";
-import { GPT_MODELS } from "@/utils/openai-models";
-import { CLAUDE_MODELS } from "@/utils/claude-models";
-import { GEMINI_MODELS } from "@/utils/gemini-models";
 import { Dialog, Listbox } from "@headlessui/react";
 import { toast } from "react-hot-toast";
 import { AIConfig } from "@/types/ai";
 import { RESPONSE_LANGUAGES } from "@/utils/language";
-import { PROVIDERS, getProviderInfo, getApiKey } from "@/utils/provider-config";
+import { NEVERSIGHT_MODELS, getNeversightModelById } from "@/utils/neversight-models";
 
 interface AIConfigModalProps {
   isOpen: boolean;
@@ -21,13 +17,9 @@ export default function AIConfigModal({
   onStartAnalysis,
 }: AIConfigModalProps) {
   const [config, setConfig] = useState<AIConfig>(() => {
-    const defaultConfig = {
-      provider: "gpt",
-      gptKey: "",
-      claudeKey: "",
-      geminiKey: "",
-      xaiKey: "",
-      selectedModel: GPT_MODELS[0].id,
+    const defaultConfig: AIConfig = {
+      apiKey: "",
+      selectedModel: NEVERSIGHT_MODELS[0].id,
       language: "english",
       superPrompt: true,
     };
@@ -35,48 +27,32 @@ export default function AIConfigModal({
     const savedConfig = localStorage.getItem('ai_config');
     if (savedConfig) {
       try {
-        return {
-          ...defaultConfig,
-          ...JSON.parse(savedConfig),
+        const raw = JSON.parse(savedConfig) as Record<string, unknown>;
+        const merged: AIConfig = {
+          apiKey: typeof raw.apiKey === "string" ? raw.apiKey : defaultConfig.apiKey,
+          selectedModel:
+            typeof raw.selectedModel === "string"
+              ? raw.selectedModel
+              : defaultConfig.selectedModel,
+          language: typeof raw.language === "string" ? raw.language : defaultConfig.language,
           superPrompt: true,
         };
+
+        // Validate model
+        if (!getNeversightModelById(merged.selectedModel)) {
+          merged.selectedModel = defaultConfig.selectedModel;
+        }
+        return merged;
       } catch (e) {
         console.error('Failed to parse saved config:', e);
       }
     }
     return defaultConfig;
   });
-  const providerInfo = getProviderInfo(config.provider);
-
-  // Handle provider change
-  const handleProviderChange = (provider: AIConfig["provider"]) => {
-    const info = getProviderInfo(provider);
-    setConfig((prev) => ({
-      ...prev,
-      provider,
-      selectedModel: info.defaultModel,
-    }));
-  };
-
-  // Handle API key change
-  const handleKeyChange = (value: string) => {
-    const updates: Record<AIConfig["provider"], Partial<AIConfig>> = {
-      gpt: { gptKey: value },
-      claude: { claudeKey: value },
-      gemini: { geminiKey: value },
-      xai: { xaiKey: value },
-    };
-
-    setConfig((prev) => ({
-      ...prev,
-      ...updates[prev.provider],
-    }));
-  };
 
   const handleStartAnalysis = () => {
-    const currentKey = getApiKey(config);
-    if (!currentKey?.trim()) {
-      toast.error(`Please enter your ${providerInfo.keyName}`);
+    if (!config.apiKey?.trim()) {
+      toast.error("Please enter your Neversight API Key");
       return;
     }
     
@@ -97,25 +73,6 @@ export default function AIConfigModal({
         </h3>
 
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              AI Provider
-            </label>
-            <select
-              value={config.provider}
-              onChange={(e) =>
-                handleProviderChange(e.target.value as AIConfig["provider"])
-              }
-              className="w-full bg-[#2A2A2A] text-gray-300 border border-[#404040] rounded-md px-3 py-2"
-            >
-              {Object.entries(PROVIDERS).map(([key, info]) => (
-                <option key={key} value={key}>
-                  {info.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
           <div className="flex gap-4 items-end">
             <div className="flex-1">
               <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -131,7 +88,7 @@ export default function AIConfigModal({
                 }
                 className="w-full bg-[#2A2A2A] text-gray-300 border border-[#404040] rounded-md px-3 py-2"
               >
-                {providerInfo.models.map((model) => (
+                {NEVERSIGHT_MODELS.map((model) => (
                   <option key={model.id} value={model.id}>
                     {model.name}
                   </option>
@@ -224,29 +181,17 @@ export default function AIConfigModal({
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              {providerInfo.keyName}
+              Neversight API Key
             </label>
             <input
               type="password"
-              value={getApiKey(config)}
-              onChange={(e) => handleKeyChange(e.target.value)}
-              placeholder={providerInfo.keyPlaceholder}
+              value={config.apiKey}
+              onChange={(e) =>
+                setConfig((prev) => ({ ...prev, apiKey: e.target.value }))
+              }
+              placeholder="Enter your Neversight API key"
               className="w-full bg-[#2A2A2A] text-gray-300 border border-[#404040] rounded-md px-3 py-2"
             />
-            <div className="mt-2 text-sm text-gray-400">
-              <p>
-                Need a {providerInfo.keyName}?{" "}
-                <a
-                  href={providerInfo.getKeyLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#FF8B3E] hover:text-[#FF8B3E]/80 transition-colors"
-                >
-                  {providerInfo.getKeyText}
-                </a>{" "}
-                (requires registration)
-              </p>
-            </div>
           </div>
         </div>
 
@@ -255,12 +200,8 @@ export default function AIConfigModal({
             onClick={() => {
               localStorage.removeItem("ai_config");
               setConfig({
-                provider: "gpt",
-                gptKey: "",
-                claudeKey: "",
-                geminiKey: "",
-                xaiKey: "",
-                selectedModel: GPT_MODELS[0].id,
+                apiKey: "",
+                selectedModel: NEVERSIGHT_MODELS[0].id,
                 language: "english",
                 superPrompt: true,
               });
