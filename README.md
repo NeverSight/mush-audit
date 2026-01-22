@@ -1,7 +1,7 @@
 # `Mush Audit`
 ----------------------------------------
 
-Mush Audit is an AI-powered smart contract security analysis platform that leverages multiple AI models to provide comprehensive security audits for blockchain contracts.
+Mush Audit is an AI-powered smart contract security auditing platform. It uses the **Neversight API** as a unified gateway to multiple model providers to generate audit reports and optimization suggestions.
 
 ----------------------------------------
 
@@ -27,12 +27,13 @@ Mush Audit is an AI-powered smart contract security analysis platform that lever
 - Multiple AI models analysis
 - Clear and actionable insights
 
-### 🔄 Multi-Model Support
-- OpenAI GPT
-- Anthropic Claude
-- Google Gemini
-- xAI Grok
-- More models coming soon
+### 🔄 Multi-Model Support (via Neversight)
+- `anthropic/claude-4.5-opus`
+- `anthropic/claude-4.5-opus-max`
+- `google/gemini-3-pro`
+- `google/gemini-3-flash`
+- `openai/gpt-5.2`
+- `openai/gpt-5.2-high`
 
 ### 🌐 Multi-Chain Support
 - Ethereum
@@ -53,7 +54,7 @@ Mush Audit is an AI-powered smart contract security analysis platform that lever
 ## Getting Started
 - Clone the repository: ``git clone https://github.com/mush-support/mush-audit``
 - ``cd mush-audit``
-- Fill in your API keys in `.env.local`
+- Enter your **Neversight API Key** in the in-app **AI Configuration** modal (it will be saved to your browser `localStorage`)
 - Install dependencies: ``bun install``
 - Start the development server: ``bun dev``
 
