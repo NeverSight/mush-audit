@@ -9,6 +9,7 @@ Blast (identifier: blast, chain ID: 81457)
 BSC (Binance Smart Chain) (identifier: bsc, chain ID: 56)
 Celo (identifier: celo, chain ID: 42220)
 Ethereum (identifier: ethereum, chain ID: 1)
+HashKey Chain (identifier: hashkey, chain ID: 177)
 HashKey Chain Testnet (identifier: hashkey-testnet, chain ID: 133)
 Gnosis (identifier: gnosis, chain ID: 100)
 Gnosis Chiado (identifier: gnosis-chiado, chain ID: 10200)
@@ -23,3 +24,13 @@ World Chain (identifier: worldchain, chain ID: 480)
 X Layer (identifier: xlayer, chain ID: 195)
 ZKsync Era (identifier: zksync, chain ID: 324)
 ```
+
+HashKey Chain references:
+- Explorer: https://hashkey.blockscout.com/
+- RPC docs: https://docs.hashkeychain.net/docs/Build-on-HashKey-Chain/network-info
+- RPC endpoint: https://mainnet.hsk.xyz
+
+HashKey Chain Testnet references:
+- Explorer: https://testnet-explorer.hsk.xyz/
+- RPC docs: https://docs.hashkeychain.net/docs/Build-on-HashKey-Chain/network-info
+- Faucet: https://faucet.hashkeychain.net/faucet
