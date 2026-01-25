@@ -44,7 +44,11 @@ Mush Audit is an AI-powered smart contract security auditing platform. It uses t
 - Polygon
 - Avalanche-C
 - Aurora
+- HashKey Chain (planned)
 - More chains coming soon
+
+## TODO
+- [ ] Add HashKey Chain support (RPC + explorer integration, verified source fetching, and UI chain selector)
 
 ### 🚀 Super Prompt
 - Enhanced analysis capabilities
